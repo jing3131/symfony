@@ -1,0 +1,72 @@
+php bin/console
+php bin/console debug:router
+
+
+// 啟動Symfony伺服器：			php -S 127.0.0.1:8000 -t public/
+
+// 使用Response：			use Symfony\Component\HttpFoundation\Response;
+	return new Response(...);
+	
+// 使用註解式路由(Annotation Routes)：		composer require annotations
+	use Symfony\Component\Routing\Annotation\Route;
+/**
+* @Route("路由")
+*/
+
+// 傳遞參數進入function：
+/**
+* @Route("路由/{參數名稱}", name="app_lucky_number")
+*/
+
+// 使用twig模板：			use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+return $this->render("lucky/number.html.twig",[
+    "number" => $number
+]);
+
+templates/lucky/number.html.twig ：
+	<h1>Your lucky number is {{ number }}</h1>
+	
+// 重新導向：
+	至Route
+	return $this->redirectToRoute("路由名, ["參數"] => 值);
+	return $this->redirectToRoute("app_lucky_number", ["max" => 10]);
+	
+	外部連結
+	return $this->redirect('http://symfony.com/doc');
+	
+// 日誌介面：						use Psr\Log\LoggerInterface;
+public function number($max, LoggerInterface $logger)
+{
+    $logger->info("We are logging");
+}
+
+// 觸發404 HTT
+throw $this->createNotFoundException("the product does not exist"); 
+
+
+// 使用Request				use Symfony\Component\HttpFoundation\Request;
+
+// 使用Session				use Symfony\Component\HttpFoundation\Session\SessionInterface;
+public function index(SessionInterface $session)
+{
+    // stores an attribute for reuse during a later user request
+    $session->set('foo', 'bar');
+
+    // gets the attribute set by another controller in another request
+    $foobar = $session->get('foobar');
+
+    // uses a default value if the attribute doesn't exist
+    $filters = $session->get('filters', []);
+}
+
+// 使用者Session： flash message 只會使用一次，檢索後自動從session刪除(適合存放用戶通知)
+$this->addFlash(
+    'notice',
+    'Your changes were saved!'
+);										// key值 = "notice"
+app.flashs()							// 讀取session內任何flash message
+
+// 回傳json
+json()						// 回傳一個已經自動編碼(encode)的JsonResponse特殊物件
+
+// 文件回應					return $this->file('/path/to/some_file.pdf');
