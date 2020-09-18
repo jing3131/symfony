@@ -1,0 +1,147 @@
+ch 1
+version control   -> 可以記錄檔案的改變，因為有紀錄，所以也可以呼叫舊版的檔案
+
+
+git --version
+git config
+
+
+ch 2
+git init                    -> 加入 .git
+git add .                   -> 追蹤
+git cimmit -m "something"   -> 提交
+git clone "https://github.com/..."
+git status                  -> 查看目前階段狀態(branch、commit 狀態)
+git status -s               -> short status { A: add;  M: modified; ??:not to add }
+
+.gitignore
+# 開頭的會忽略(註解)
+可使用 Glob
+以(/)開頭避免路徑遞迴(如果不以 / 為開頭，則不管同檔名或同名資料夾在哪層都會被忽略掉)
+(/)結尾表示目錄
+(!)開頭表示將模式規則反向
+
+# Glob : 類似簡化版正規表達式
+Ex:
+*.a             -> 不追蹤(忽略 .a結尾的檔名)
+!lab.a          -> 要追蹤 lab.a
+/TODO           -> 只忽略根目錄下的TODO檔，不包含子目錄下的TODO
+build/          -> 忽略 build/ 下所有的檔案
+doc/**/*.pdf    -> 忽略 doc/ 下.pdf檔
+
+
+git diff                        -> 可顯示檔案裡的哪些資料夾加入或刪除
+git diff --staged(cached)       -> 可顯示哪些部分已預存(add)
+git cimmit -a -m "something"    -> 可自動預存所有與追蹤的檔案(git add)
+git rm fileName                 -> 移除檔案
+git rm --cached fileName        -> 移除預存區(add)的檔案     會在status有deleted紀錄
+git reset HEAD fileName         -> 可將檔案移除預存區(add)    不會在status有deleted紀錄
+git rm log/\*.log               -> 移除在log/底下所有的.log檔
+git rm \*~                      -> 移除 ~ 結尾的檔案
+git mv file_old file_new        -> 更改名稱
+
+
+# log
+git log                         -> 顯示歷史紀錄
+git log -p -2                   -> 顯示提交(add)每筆修改的內容 -2 可以限制輸出最後2筆提交的內容
+git log --stat                  -> 顯示簡略統計資料(+ -)
+git log --pretty=oneline        -> 每筆資料只顯示一行 (short full fuller)
+git log --pretty=format:"%h - %an, %ar : %s"        -> 自定義輸出格式       author: 最初修改者; committer:最後套用該工作的人 
+git log --pretty=format:"%h %s" --graph     -> --graph 可圖形化顯示分支與合併歷史
+git log --since=2.week          -> 顯示近兩週以來的提交內容
+git log -Sstring                -> 顯示含有特定字串的提交
+
+git commit --amend -m "something"         -> 可以覆蓋掉上一個commmit
+git checkout -- fileName        -> 復原到提交前的樣子，提交前使用亦可(undo)
+
+
+# remote 遠端
+git remote -v                   -> 如果來自遠端clone，會顯示origin  -v: 會顯示來源網址
+git remote add 簡稱 url         -> 新增遠端版本庫
+git fetch 簡稱                  -> 遠端追蹤分支，可以用來合併(merge)
+git push [remote-name] [branch-name]        -> 推送特定分支
+git remote show [remote-name]               -> 檢視特定遠端資訊
+git remote rename [old-name] [new name]     -> 重新命名遠端
+
+
+# tag 標籤
+git tag -a [tag_name] -m "something"            -> 新增含有註解的標籤
+git tag [tag_name]                              -> 新增純標籤
+git tag                                         -> 顯示標籤
+git tag -l "..*"                                -> 顯示含有..的標籤
+git show [tag_name]                             -> 顯示標籤的註解內容
+git tag [tag_name] [commit-hash]                -> 可以針對 commit 增加標籤
+git push [branch-name] [tag_name]               -> 將標籤推送至遠端
+git checkout -b [branch-name] [tag_name]        -> 在該標籤上新增分支
+git config --global alias.last "log -1 HEAD"    -> 設定別名(原名稱亦有效) Ex: 看到最後一筆提交訊息
+git config --global alias.visual '!gitk'        -> 下字元 ! 可以執行外部指令
+
+
+
+ch 3
+git branch [branch-name]                        -> 新增分支
+git checkout -b [branch-name]                   -> 新增並切換分支
+git log --oneline --decorate                    -> 查看歷史與分支(會顯示目前commit位置)
+
+                        HEAD
+                        testing
+ewfe43  fdg354  dfgg3   dfdk039                 -> 當前的分支在哪，分支就會跟著新的 commit 前進
+                master                             切換到舊(後面的分支)無法看到其他分支新增的commit
+
+git checkout [branch-name]                      -> 切換分支     (在切換分支時盡量保持所有內容都 commit 完成)
+git log --decorate --graph --all
+git merge [branch-name]                         -> 將分支合併到目前所在分支     (fast-forward : 在合併時為自動把舊的指標(HEAD) 往前移動)
+git branch -d [branch-name]                     -> 刪除分支
+git mergetool                                   -> 開啟視覺化合併工具
+git branch                                      -> 查看分支清單
+git branch -v                                   -> 查看清單與提交(commit)雜湊、內容
+git branch --merged                             -> 已合併
+git branch --no-merged                          -> 尚未合併到目前分支
+git fetch [remote-name]                         -> 將遠端資料加入到遠端分支(Ex: origin/master) 但不可被修改          // git pull = git fetch + git merge
+git push [remote-name] [branch-name]            -> 將特定遠端的分支push到網路上
+git checkout --track [remote/branch]            -> 將遠端的 branch checkout 回來並建立一個新的 local branch，加上 --track 表示之後還會在pull push
+git checkout -b [new branch-name] [branch]      -> 增加名稱不同的本地分支
+git branch -u [remote/branch]                   -> 查看配置
+git branch -vv                                  -> 將所有本地分支列出來(含詳細訊息)
+git push [branch] --delete [remote]             -> 刪除遠端分支
+git rebase [branch-base-name] [branch-name]     -> 為了不使用三方合併將其中一條分支補到另條分支後，之後再去合併
+        c4
+c1  c2  c3  c4'                                  -> rebase c3 c4: 以c3作為基底 讓c4 -> c4' ，保持提交(commit歷史的整潔
+
+git rebase --onto [traget base-commit] [commit from] [commit to]        -> 從[commit from]開始的所有commit 嫁接到另一個commit([traget base-commit])
+// [traget base-commit]: 作為基礎的commit
+// [commit from]: 要嫁接commit的起始點(但不包含此commit)
+// [commit to]: 要嫁接commit的終點(包含此commit)，如果沒有給予，預設為branch最後一個commit
+git rebase --onto [traget base-branch] [branch from] [branch to]        -> [branch from]: 與 [branch to] 分界點的commit
+
+
+
+ch 4
+SSH: 訪問是安全的傳輸數據都要經過授權和加密，傳輸前也會盡量壓縮數據，但不支持匿名訪問
+Git: 要讓數據庫支持Git協定，需先創建一個git-daemon-export-ok文件，此外沒有任何安全措施，網速最快，但缺乏授權機制
+
+# 架設Git
+git clone --bare my_project my_project.git              -> clone 一個一個數據庫來創建新的裸數據庫，裸數據庫的目錄名以.git結尾
+= cp -Rf my_project/.git my_project.git
+
+$scp -r my_project.git user@git.example.com:/srv/git            -> user@自己的域名，將git數據庫放在/srv/git目錄下
+git clone uesr@git.example.com:/srv/git/my_project.git          -> 假設伺服器上存在srv/git目錄，可將其複製下來
+
+$ ssh user@git.example.com
+$ cd /srv/git/my_project.git
+$ git init --bare --shared                              -> 使用SSH連接到一個伺服器，並且使用git init --shared，可將數據庫目錄的組權限改為可寫
+
+
+
+# 查看是否有金鑰
+cd ~/.ssh
+ls
+# 將公鑰加入系統用戶的git的.ssh目錄下authorized_keys文件的末尾
+cat /tmp/id_rsa.user.pub >> ~/.ssh/authorized_keys
+
+$ cd myproject
+$ git init
+$ git add .
+$ git commit -m 'initial commit'
+$ git remote add origin git@gitserver:/srv/git/project.git
+$ git push origin master
