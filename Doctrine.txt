@@ -1,0 +1,89 @@
+Entities(實體) : 一個php 物件，透過主鍵對許多請求進行辨識，不需要繼承(extends)、抽象類別(abstract)或介面(interface)
+Entities 屬於持久性屬性，透過Doctrine的映射功能可以保存到資料庫或從資料庫檢索出來
+Entities 不能含有final屬性或方法
+
+1. composer install                       // 安裝 doctrine
+
+2. bootstrap.php
+doctrine ，bootstrap 負責創建 EntityManager，EntityManager是整個 doctrine對外提供操作的接口，隱藏資料庫，並提供對entity的查詢、更新與持久化
+
+3. cli-config.php
+Doctrine 具有命令提示介面，可以訪問SchemaTool，為了使工具啟用，必須在跟目錄下存在 cil-config.php
+
+4. 在src下創建實體(entity)、或是在config\XML 裡創建
+
+(src) php法：所有變數都應該為protected、private，且都需要有set、get
+id 不會有set設置
+
+(config/XML)： 建 XML
+
+5. vendor/bin/doctrine orm:schema-tool:update --force --dump-sql
+
+6. 創建腳本將資料插入資料庫
+
+7. 新增資料 php create_product.php ORM   // 帶值進去
+// (執行 php: php XXX.php $argv[1])
+
+
+# 關聯
+@ORM/ManyToOne(targetEntity="關聯的表", inversedBy="關聯的變數")
+@ORM/OneTOMany(targetEntity="關聯的表", mappedBy="關聯的變數")
+// inversedBy, mappedBy 是相對應的
+
+
+@ORM/ManyToMany(targetEntity="關聯的表")
+// 兩邊都需要標注
+
+8. vendor/bin/doctrine orm:schema-tool:update --force
+
+
+
+
+# DQL
+// 相當於 array，在 doctrine必須使用 ArrayCollection
+ArrayCollection()
+
+// 查詢(SELECT 查詢欄位 FROM 資料表名稱)
+$a = $entityManager->find("資料表名稱", "查詢欄位");
+
+// 通知EntityManager將新的實體插入資料庫
+$entityManager->persist("新增的");
+
+// 執行寫入資料庫(INSERT UPDATE DELETE)
+$entityManager->flush();
+
+// 建立DQL語法(list_bugs.php)
+$dql = "SELECT b, r, e, p FROM Bug b JOIN b.engineer e JOIN b.reporter r JOIN b.products p ORDER BY b.created DESC";
+$query = $entityManager->createQuery($dql);
+// 設置最大輸出幾筆資料(LIMIT)
+$query->setMaxResults(30);
+// 查詢完的結果($row = $result->fetch(PDO::FETCH_ASSOC) )
+$bugs = $query->getResult();
+// 獲得一個結果
+$bugs = $query->getSingleResult();
+// 將結果包裝成陣列
+$bugs = $query->getArrayResult();
+
+// getRepository: 可以為各個實體創建查詢對象; findAll(): 找出全部(SELECT * FROM ...)
+$productRepository = $entityManager->getRepository('Product');
+$products = $productRepository->findAll();
+$products = $productRepository->find($id);
+= $products = $entityManager->find('Product', $id);
+
+// findOneBy: (WHERE ... = ??)
+$products = $entityManager->getRepository("Product")
+                          ->findOneBy("Product", ["name" => 使用者輸入的]);
+// findBy: (WHERE ... = ??) 回傳多筆資料
+$bugs = $entityManager->getRepository("Bug")
+                      ->findBy(["status" => "OPEN"]);
+
+
+// (dashboard.php)
+$dql = "SELECT b, e, r FROM Bug b JOIN b.engineer e JOIN b.reporter r " .
+       "WHERE b.status = 'OPEN' AND (e.id = ?1 OR r.id = ?1) ORDER BY b.created DESC"; // ?後面表示參數
+
+$myBugs = $entityManager->createQuery($dql)
+                        ->setParameter(1, $theUserId) // 表示參數(1)參照哪個變數($theUserId)
+                        ->setMaxResults(15)
+                        ->getResult();
+echo count($myBugs) // 計算myBugs 的數量
