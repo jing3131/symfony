@@ -1,0 +1,54 @@
+# curl
+在shell 使用 curl
+-X 請求方式 (Ex: POST)
+-d 傳遞參數
+curl -X POST http://www..... -d "parameter1=value1&parameter2=value2"
+
+// var_dump(curl_error($curl));
+
+# 以 php 方式呼叫
+$url = $argv[1];
+$postData = [
+    "account" => $argv[2],
+    "password" => $argv[3],
+    "amount" => $argv[4]
+]
+
+$curl = curl_init();        // 初始化 curl
+curl_setopt($curl, CURLOPT_URL, $url);          // $url 自行設定
+curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);       // 以文件方式回傳
+curl_setopt($curl, CURLOPT_POST, true);         // 設置請求為 POST
+curl_setopt($curl, CURLOPT_POSTFILEDS, $postData)       // 添加 postData 到請求中
+$response = curl_exec($curl);
+
+curl_close($curl);
+echo $response;
+
+
+## 壓力測試 ApacheBench(ab)
+ab -V 查看版本
+ab --help
+
+// ab 常用工具參數
+-c 並發數，默認 = 1         // 同時有幾個人在使用
+-n 總共的請求執行數，默認 = 1   // 再進行測驗時，總共會發出多少筆連線           // -n 1000 -c 循環會做10次，每次100個連線，總共會發出1000個連線壓測 -> -n 不能 < -c
+-t 測試所進行的總時間，以秒為單位，默認 = 50000s
+-p POST 時的數據文件
+-w 以 html表的格式輸出結果
+
+Ex: ab -n 100 -c 100 -T 'application/x-www-form-urlencoded' -p post.txt -w http://www.jane_he.com/app_dev.php/bank/deposit_withdraw/1 >> pessimistic.html
+-T content-type
+-p 放在根目錄
+    post.txt 放 post所需的資料(Ex: amount=10&name=qaq)
+-w http://... >> x.html 將壓力測試記錄寫入 html (檔案紀錄在根目錄裡)
+
+
+# 測試結果
+concurrency Level 並發數(-c)
+Time taken for tests 總共花多久時間執行(從建立連接到最後接受完成時間)
+Complete requests 總請求數(-n)
+Failed requests 失敗的請求數：
+    ab 會將第一次接收到的 Response 資料記錄在 Header 的 Content-Length 數據，只要第2次到第n次要求長度與第一次不同，就會記錄在 Failed requests 的 Length
+Total transfrerred 所有請求的響應資料長度總和
+Requests per second 伺服器每秒可回應多少的請求，數值越高越好
+Time per request 伺服器處理每個請求所花的時間(/ms)，數值越低越好(使用者平均請求等待時間)

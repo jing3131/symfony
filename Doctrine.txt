@@ -2,7 +2,7 @@ Entities(實體) : 一個php 物件，透過主鍵對許多請求進行辨識，
 Entities 屬於持久性屬性，透過Doctrine的映射功能可以保存到資料庫或從資料庫檢索出來
 Entities 不能含有final屬性或方法
 
-1. composer install                       // 安裝 doctrine
+1. composer install                       // 安裝 doctrine(需包含composer、composer.json)
 
 2. bootstrap.php
 doctrine ，bootstrap 負責創建 EntityManager，EntityManager是整個 doctrine對外提供操作的接口，隱藏資料庫，並提供對entity的查詢、更新與持久化
@@ -25,14 +25,59 @@ id 不會有set設置
 // (執行 php: php XXX.php $argv[1])
 
 
+# Entity
+use Doctrine\ORM\Mapping as ORM;
+/**
+* @ORM\Entity
+*/
+class Text
+{
+    /**
+    * @ORM\Id       // 主鍵 primary key
+    * @ORM\GeneratedValue           // (strategy = "AUTO")(默認值): auto_increment       // GeneratedValue(strategy = "IDENTITY"): 在插入列前先生成一個值
+    * @ORM\Column(type = "integer")
+    */
+    protected $id;
+
+    /**
+    * @ORM\Column(type = "string", name = "Column_name", length = 20, nullable = false)     // name = 內部欄位名稱, length = varchar長度, nullable默認值為false(可省略)
+    */
+    protected $name;        // php呼叫名稱
+
+    /**
+    * @ORM\ManyToOne(targetEntity = "Table_class")     // 關聯的資料表
+    * @ORM\JoinColumn(nullable = false, name = "JoinColumnName")   //關聯下的nullable默認值為true   name: 重新命名欄位名稱
+    */
+}
+
 # 關聯
-@ORM/ManyToOne(targetEntity="關聯的表", inversedBy="關聯的變數")
-@ORM/OneTOMany(targetEntity="關聯的表", mappedBy="關聯的變數")
+// @JoinColumn、@JoinTable為默認值，會自動生成，可省略
+
+@ORM/ManyToOne(targetEntity = "關聯的表", inversedBy = "關聯的變數")
+@ORM/OneToMany(targetEntity = "關聯的表", mappedBy = "關聯的變數")
 // inversedBy, mappedBy 是相對應的
+單向一對多： 可使用為單向多對多(在建立一個中間資料表進行多對多的關聯)
+/**
+* Many User have Many Phonenumbers.
+* @ManyToMany(targetEntity="Phonenumber")
+* @JoinTable(name="users_phonenumbers",
+*      joinColumns={@JoinColumn(name="user_id", referencedColumnName="id")},
+*      inverseJoinColumns={@JoinColumn(name="phonenumber_id", referencedColumnName="id", unique=true)}
+*      )
+*/
+
+-----        ------------        -------
+|user|  ->   |user_group|   <-   |group|
+-----        ------------        -------
+單向多對多：@ORM/ManyToMany(targetEntity="關聯的表")
 
 
-@ORM/ManyToMany(targetEntity="關聯的表")
-// 兩邊都需要標注
+// 一對一 @JoinColumn(name="", referencedColumnName="") -> 多的那方加(可省略)
+// ALTER TABLE CART ADD FORGIN KEY (customer_id) REFERENCES Customer(id);
+單向一對一： @ORM/OneToOne(targetEntity="") // 會在單向的mysql中產生 UNIQUE INDEX(另外一向的id)
+雙向一對一：(在多的table放 inversedBy)
+自向一對一： @ORM/OneToOne(targetEntity="") // 對自己的兩個欄位做關聯
+@ORM/OneToOne(targetEntity="", inversedBy="") @ORM/OneToOne(targetEntity="", mappedBy="")
 
 8. vendor/bin/doctrine orm:schema-tool:update --force
 
@@ -41,6 +86,7 @@ id 不會有set設置
 
 # DQL
 // 相當於 array，在 doctrine必須使用 ArrayCollection
+use Doctrine\Common\Collections\ArrayCollection;
 ArrayCollection()
 
 // 查詢(SELECT 查詢欄位 FROM 資料表名稱)
@@ -55,24 +101,58 @@ $entityManager->flush();
 // 建立DQL語法(list_bugs.php)
 $dql = "SELECT b, r, e, p FROM Bug b JOIN b.engineer e JOIN b.reporter r JOIN b.products p ORDER BY b.created DESC";
 $query = $entityManager->createQuery($dql);
-// 設置最大輸出幾筆資料(LIMIT)
+// 設置最大輸出幾筆資料(LIMIT(2, 30))
+$query->setFirstResult(2);  // 從第幾筆開始算
 $query->setMaxResults(30);
 // 查詢完的結果($row = $result->fetch(PDO::FETCH_ASSOC) )
 $bugs = $query->getResult();
-// 獲得一個結果
+// 獲得單一個結果
 $bugs = $query->getSingleResult();
 // 將結果包裝成陣列
 $bugs = $query->getArrayResult();
 
+// createQuery: INSERT UPDATE DELETE(DQL刪除為最有效率的批量刪除法)
+$query = $entityManager->createQuery("UPDATE Product p SET p.name = 'g' WHERE p.id = 1");
+$query->execute();
+
+// 回傳單一結果或null
+getOneOrNullResult();
+
+
+Ragular Join(JOIN 沒有包含在 SELECT裡): SELECT u FROM User u JOIN u.address a WHERE a.city = "Berlin"
+Fetch Join(JOIN 包含在 SELECT裡): SELECT u, a FROM User u JOIN u.address a WHERE a.city = "Berlin
+
+// WITH 指定附加條件限制JOIN子句
+SELECT u FROM CmsUser u LEFT JOIN u.articles a WITH a.topic LIKE :foo
+// IN() 表達式
+SELECT u FROM User u WHERE u.id IN(46)
+// TRIM 將特殊字元轉換為字串(修剪)
+SELECT u FROM User u WHERE TRIM(u.name) = "rzz"
+// IS EMPTY
+SELECT u FROM User u WHERE u.Phonenumbers IS EMPTY
+
+// NEW
+class CustomerDTO
+{
+    public function __construct($name, $email, $city, $value = null)
+    {
+        ...
+    }
+}
+SELECT NEW CustomerDTO(c.name, e.email, a.city) FROM Customer c JOIN c.email e JOIN c.address a
+
+
 // getRepository: 可以為各個實體創建查詢對象; findAll(): 找出全部(SELECT * FROM ...)
-$productRepository = $entityManager->getRepository('Product');
+$productRepository = $entityManager->getRepository('Product');      // getRepository(Product::class)
 $products = $productRepository->findAll();
+$message = $messageRepository->findBy([], ["messageTime" => "DESC"], 3, $count); // array $criteria, array $orderBy, $limit, $offset
 $products = $productRepository->find($id);
 = $products = $entityManager->find('Product', $id);
+$productCount = $entityManager->getRepository(Product::class)->count(["name" => "..."]);    // 計算name = "..." 的數量
 
 // findOneBy: (WHERE ... = ??)
 $products = $entityManager->getRepository("Product")
-                          ->findOneBy("Product", ["name" => 使用者輸入的]);
+                          ->findOneBy(["name" => 變數]);
 // findBy: (WHERE ... = ??) 回傳多筆資料
 $bugs = $entityManager->getRepository("Bug")
                       ->findBy(["status" => "OPEN"]);
@@ -87,3 +167,250 @@ $myBugs = $entityManager->createQuery($dql)
                         ->setMaxResults(15)
                         ->getResult();
 echo count($myBugs) // 計算myBugs 的數量
+
+
+// 回傳總數量
+$dql = "SELECT COUNT(m.id) FROM Message m";
+$result = $this->getEntityManager()->createQuery($dql)
+                                   ->getSingleScalarResult(); // 回傳聚合型的結果(Ex: COUNT)
+
+
+// Embedded 將資料表嵌入到另一份資料表
+class User
+{
+    /** @Embedded(class = "Address") */
+    private $address;
+
+    public function __construct()
+    {
+        $this->address = new Address(); // 避免拿到空值，而非拿到嵌入式的對象
+    }
+}
+// 重新自行編號
+/** @Embedded(class = "Address", columnPrefix = false) */
+
+
+
+# queryBuilder
+// 建立 queryBuilder
+$qb = $em->createQueryBuilder();        // $em -> entityManager
+$user = $qb->select("u")
+           ->from("Bug", "u")
+           ->where("u.name = :a")       // where("u.name = ?1")     // ?後面放數字、:後面放字串
+           ->setParameter("a", "...")
+           ->getQuery()
+           ->getResult();
+$result = $qb->update("Message", "m")
+    ->set("m.title", "?1")
+    ->set("m.message", "?2");
+
+
+// Expr
+where($qb->expr()->eq("u.name", "?2"));
+set("u.id", $qb->expr()->literal("TheString");     // literal : 轉換成文字
+
+use Doctrine\ORM\Query\Expr;
+$qb->add("select", new Expr\Select(["m"]))
+    ->add("from", new Expr\From("Message", "m"))
+    ->add("where", $qb->expr()->eq("m.id", "?1"))
+    ->add("orderBy", new Expr\OrderBy("m.id", "DESC"));
+
+// add 方法
+$user = $qb->add("select", "u")
+           ->add("from", "User u")
+           ->add("where", "u.id = ?1");
+
+// 一次傳多個參數進去
+setParameters(["uid" => 1, "uname" => "luzzz"]);
+// 獲得綁定參數，用於 action
+getParameter("uid");
+getParameters();
+
+# 繼承 extends
+## single table (Person.php; Employee.php)
+// 當table 產生時，只會有單一個table(Person)，欄位包含 discr(繼承的類別)、繼承的屬性
+/**
+ * @ORM\Entity
+ * @ORM\InheritanceType("SINGLE_TABLE")
+ * @ORM\DiscriminatorColumn(name="discr", type="string")
+ * @ORM\DiscriminatorMap({"person" = "Person", "employee" = "Employee"})
+*/
+class Person
+{
+     ...
+}
+
+/**
+* @ORM\Entity
+*/
+class Employee extends Person
+{
+    ...
+}
+
+## Class Table Inheritance
+// 繼承時子類別會再產生一個 Table
+/**
+* @ORM\Entity
+* @ORM\InheritanceType("JOINED")
+* @ORM\DiscriminatorColumn(name = "discr", type = "string")
+* @ORM\DiscriminatorMap({"person" = "Person", "employee" = "Employee"})
+*/
+class Person
+{
+    ...
+}
+
+/**
+* @ORM\Entity
+*/
+class Employee extends Person
+{
+    ...
+}
+
+// 更新、刪除(直接對子類別進行更新或刪除)
+$qb->update("Employee", "e")
+    ->set("e.department", "casher")
+    ->set("e.name", "Hoo")
+    ->where("e.id", 1);
+
+
+
+
+# EntityRepository
+use Doctrine\ORM\EntityRepository;
+
+class MessageRepository extends EntityRepository
+{
+    public function setMessage()
+    {
+        ...
+    }
+}
+
+/**
+* @ORM\Entity(repositoryClass="MessageRepository")       // repositoryClass: 對應的class
+*/
+class Message
+{
+    ...
+}
+
+// 回傳 getType()
+// queryBuilder::SELECT，回傳 0
+// queryBuilder::DELETE，回傳 1
+// queryBuilder::UPDATE，回傳 2
+echo $qb->getType();
+
+
+# 交易異動 Transaction
+use Doctrine\DBAL\Connection
+
+$entityManager->getConnection()->beginTransaction();
+try {
+    ...
+    $entityManager->getConnection()->commit();
+} catch(Expection $e) {
+    $entityManager->getConnection()->rollBack();
+    throw $e;
+}
+
+// transactional 發生異常時自動回復(rollBack)
+$entityManager->transactional(function ($entityManager) {
+    ...
+    $entityManager->persist(...);
+});
+
+# 樂觀鎖 OptimisticLockException
+use Doctrine\DBAL\LockMode;
+use Doctrine\ORM\OptimisticLockException;
+
+// Entity
+/**
+* @ORM\Version
+* @ORM\Column(type = "integer")         // @ORM\Column(type = "datetime")
+*/
+protected $version;
+
+// function 1
+$theEntityId = 1;       // 欲更動的資料 id
+$exceptionVersion = 123; //假設有一屬性的版本(上一筆的版本)
+
+try {
+    $entity = $entityManager->find(Employee::class, $theEntityId, LockMode::OPTIMISTIC, $exceptionVersion);
+    $entity->setDepartment("Leader");
+    $entityManager->flush();
+} catch (OptimisticLockException $e) {
+    ...
+}
+
+// function 2
+$entity = $entityManager->find(Employee::class, $theEntityId);
+$exceptionVersion = $entity->getVersion();  // 在 Entity 中自定義取得目前的 version
+
+try {
+    $entityManager->lock($entity, LockMode::OPTIMISTIC, $exceptionVersion);
+    $entity->setDepartment("Leader");
+    $entityManager->flush();
+} catch (OptimisticLockException $e) {
+    ...
+}
+
+# 悲觀鎖 PessimisticLockException
+use Doctrine\DBAL\LockMode;
+use Doctrine\ORM\PessimisticLockException;
+
+try {
+    $entityManager->getConnection->beginTransaction();
+    $entity = $entityManager->find(Employee::class, $theEntityId, LockMode::PESSIMISTIC_WRITE);         // LockMode::PESSIMISTIC_READ
+    ...
+    $entityManager->getConnection()->commit();
+} catch (PessimisticLockException $e) {
+    ...
+    $entityManager->getConnection()->rollback();
+}
+
+
+# batch Processing 批量處理
+// 使用 detach 處理可以清除內存(暫存)空間
+foreach ($iterateResult as $row) {
+    ...
+    $entityManager->detach($row[0]);
+}
+// 批量插入(INSERT)
+$batchSize = 20;
+for ($i = 1; $i <= 1000; ++$i) {
+    new...
+    setName...
+    $entityManager->persist($user);
+
+    if (($i % batchSize) === 0) { // === 全等
+        $entityManager->flush();
+        $entityManager->clear();
+    }
+}
+$entityManager->flush();
+$entityManager->clear();
+
+// iterate (Query#iterate) 批量加載查詢結果，而非將整個結果加載到內存中
+$batchSize = 20;
+$i = 1;
+$query = $entityManager->createQuery("SELECT u FROM User u");
+$iterateResult = $query->iterate();
+foreach ($iterateResult as $row) { // iterateResult 為一個不計數的
+    $user = $row[0]; // 資料固定都在 $row[0]
+
+    if ($i % $batchSize === 0) {
+        $entityManager->flush();
+        $entityManager->clear();
+    }
+    ++$i;
+}
+$entityManager->flush();
+
+// 批量刪除(QDL DELETE 才具最有效率的批量刪除)
+QDL: "DELETE FROM User u WHERE u.id > 100"
+Query#iterate: 使用批量加載查詢再刪除
+
+

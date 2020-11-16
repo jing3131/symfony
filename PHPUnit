@@ -1,0 +1,234 @@
+composer require --dev phpunit/phpunit
+
+# PHPUnit
+composer require --dev symfony/phpunit-bridge
+composer require --dev symfony/browser-kit symfony/css-selector
+vendor/bin/simple-phpunit tests/AppBundle/Controller/XXXControllerTest.php
+vendor/bin/simple-phpunit tests/AppBundle/Entity/XXXTest.php
+
+
+# Entity
+// tests/AppBundle/Entity/AccountTest.php;
+namespace Tests\AppBundle\Entity;
+
+use AppBundle\Entity\Account;
+use PHPUnit\Framework\TestCase;
+
+class AccountTest extends TestCase
+{
+    // 初始化(新增)，使用 get 測試檢查
+    $account = new Account("ovo", "555");
+    $this->assertEquals("ovo", $account->getAccount());
+
+    // 修改(set)，使用 toArray 檢查逐一檢查
+    $account->setTotal(10);
+    $accountArray = $account->toArray();
+    $this->assertEquals(10, $accountArray["total"]);
+}
+
+
+
+# Controller
+// tests/AppBundle/Controller/XXXControllerTest.php;
+namespace Tests\AppBundle\Controller;
+
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+
+class BankControllerTest extends WebTestCase
+{
+    public function testShow()  // 須以 test 為開頭
+    {
+        $client = static::createClient();   // 用來模擬瀏覽器，並抓取網站頁面
+        $crawler = $client->request("GET", "/bank/account_all");                    // GET    // 模擬一個 HTTP 客戶端請求，可針對程序的提出請求(點擊或提交表單等動作)
+        $response = json_decode($client->getResposne()->getContent(), true);
+
+        $this->assertEquals(200, $client->getResponse()->getStatusCode());  // status = 200 -> 正常執行
+        $this->assertEquals(10, $response[0]["amount"]);
+    }
+
+    public function testPost()
+    {
+        $crawler = $client->request("POST", "/bank/account", ["amount" => 10]);      // POST
+        $response = json_decode($client->getResponse()->getContent(), true);        // 將回傳的 JsonResponse decode 成一般陣列進行比對  // true 表陣列，false表物件
+        $this->assertEquals(10, $response["amount"]);
+    }
+}
+
+$this->assertEquals(1, $a);     // 兩者是否相等
+$this->assertEquals(1,$crawler->filter("h1:contains('account')")->count()); // 檢查 字串 account 是否出現在產生的 html ，並且是在 H1 標籤中，數量為 1
+$this->assertCount($expectedCount, $array, "messsage");     // 比較陣列值是否符合期望數量
+$this->assertTrue($client->getResponse()->isSuccessful());      // 是否有回應 status = 2XX // isNotFound()
+$this->assertTrue($client->getResponse()->isRedirect());   // 是否有轉址 isRedirect("/bank/tests")
+$this->assertStringContainsString("account", $client->getResponse()->getContent()); // 檢查字串是否出現在返回的值
+$this->assertNotEmpty($client->getResponse);
+$this->assertGreaterThan($expected, $actual, "expected not greater than actual");   // 比較期望值是否 > 實際值
+$crawler = $client->followRedirect();    // 自動追蹤導向
+$crawler = $client->followRedirects();   // 自動追蹤所有導向
+$crawler = $client->followRedirects(false);
+
+
+// $client->getResponse()->getContent()     -> 不帶文檔格式(XML、HTML)的原始內容
+// $client->getResponse()->getStatusCode()     -> 回應狀態(200、400、500...)
+// POST
+$crawler = $client->request("POST", "/bank/deposit_withdraw/1", ["amount" => 100]);
+
+
+# Liip
+composer require liip/functional-test-bundle
+
+// app/AppKernel.php
+if ('test' === $this->getEnvironment()) {
+    $bundles[] = new Liip\FunctionalTestBundle\LiipFunctionalTestBundle();
+}
+// app/config/config_test.yml
+liip_functional_test: ~
+
+framework:
+    test: ~
+    session:
+        # handler_id: ~
+        storage_id: session.storage.mock_file
+        name: MOCKSESSION
+
+# security:
+    # firewalls:
+        # NAME_OF_YOUR_FIREWALL:
+            # http_basic: ~
+
+
+
+use Liip\FunctionalTestBundle\Test\WebTestCase;
+
+class LiipControllerTest extends WebTestCase
+{
+    public function testShow()
+    {
+        $client = $this->makeClient();   // $this->createClient();
+        $crawler = $client->request("GET", "/bank/account_all");
+        ...
+    }
+}
+
+$this->assertStatusCode(200, $client);          //  連線是否正常
+$this->isSuccessful($client->getResponse());    // 添加參數 , false 表是否連線失敗
+$this->assertSame("ovo", $response["account"]);     // $this->assertEquals();
+$this->fetchContent("/bank/account_all", "GET", false, true);      // fetchContent("route", "GET/POST", authentication = false, success = true) // 後兩者可省略，查看路由是否存在
+
+// $this->getUrl("route_name", ["parameter"])
+$path = $this->getUrl(
+    "deposit_withdraw", [
+        "id" => 1,
+    ]
+);
+$client->request("POST", $path, [
+    "amount" => 10,
+]);
+
+// Login client
+framework:
+    authentication:
+        username: "a valid username"
+        password: "the password of that user"
+
+$credentials = [
+    "username" => "a valid username",
+    "password" => "a valid password"
+]
+client = $this->makeClient($credentials);
+
+// Query Count
+use Liip\FunctionalTestBundle\Annotations\QueryCount;
+
+framework:
+    profiler:
+        enabled: true
+        collect: true
+
+doctrine:
+    dbal:
+        connections:
+            default:
+                profiling: true
+
+liip_functional_test:
+    query:
+        max_query_count: 50
+
+/**
+* @QueryCount(100)
+*/
+public function testQueryCount()
+{
+    ...
+}
+
+
+
+# sqlite
+// 在當前資料夾下 sqlite3 test.db
+composer require "liuggio/fastest=~1.4"
+
+// app/config/config_test.yml
+doctrine:
+    dbal:
+        driver: pdo_sqlite
+        url: 'sqlite:///%kernel.project_dir%/var/test.db'
+
+// php bin/console cache:warmup --env=test
+composer require --dev doctrine/doctrine-fixtures-bundle
+composer require --dev liip/functional-test-bundle
+compser install
+
+// 存放假資料
+// src/AppBundle/DataFixtures/AccountFixtures.php
+namespace AppBundle\DataFixtures;
+
+use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Common\Persistence\ObjectManager;
+
+class AccountFixtures extends Fixture
+{
+    public function load(ObjectManager $manager)
+    {
+        $account = new Account("ovo", "1234");
+        $manager->persist($account);
+        $manager->flush();
+    }
+}
+
+// app/AppKernel
+if (in_array($this->getEnvironment(), ['dev', 'test'], true)) {
+    $bundles[] = new Doctrine\Bundle\FixturesBundle\DoctrineFixturesBundle();
+}
+
+// tests/AppBundle/BankControllerTest;
+// 使用假資料
+use DataFixtures\AccountFixtures;
+
+public function setUp() :void
+{
+    $this->loadFixtures([
+        AccountFixtures::class,
+        RecordFixtures::class
+    ])->getReferenceRepository();
+}
+
+composer dump-autoload
+php bin/console doctrine:fixtures:load --append
+
+
+
+# code converage
+// phpunit.xml.dist
+<whitelist processUncoveredFilesFromWhitelist="true">
+</whitelist>
+
+<listeners>
+    <listener class="Symfony\Bridge\PhpUnit\ConverageListener" />
+</listeners>
+
+
+composer require --dev phpunit/phpunit
+composer require --dev phpunit/php-code-coverage
+// vendor/bin/phpunit -c phpunit.xml.dist --coverage-html ./coverage --coverage-text
+vendor/bin/phpunit --converage-text tests/AppBundle/Controller/BankControllerTest.php

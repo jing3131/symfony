@@ -1,72 +1,359 @@
+tail -f /usr/local/var/log/nginx/access.log;        // 執行 access.log
+
 php bin/console
 php bin/console debug:router
 
+# 必要使用
+use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Method;
 
-// 啟動Symfony伺服器：			php -S 127.0.0.1:8000 -t public/
 
-// 使用Response：			use Symfony\Component\HttpFoundation\Response;
-	return new Response(...);
-	
-// 使用註解式路由(Annotation Routes)：		composer require annotations
-	use Symfony\Component\Routing\Annotation\Route;
-/**
-* @Route("路由")
-*/
 
-// 傳遞參數進入function：
-/**
-* @Route("路由/{參數名稱}", name="app_lucky_number")
-*/
+# Migration
+COMPOSER_MEMORY_LIMIT=-1 composer require doctrine/doctrine-migrations-bundle
+// app/AppKernel.php
+$bundles = [
+    new Doctrine\Bundle\MigrationsBundle\DoctrineMigrationsBundle(),
+];
+// 建完實體(Entity)
+php bin/console doctrine:database:create        // 建立資料庫
+php bin/console doctrine:migrations:diff    // 從 Entity 自動產生 migrations 檔案 (包含資料表結構)
+php bin/console doctrine:migrations:migrate // 執行 migrations
 
-// 使用twig模板：			use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-return $this->render("lucky/number.html.twig",[
-    "number" => $number
-]);
+php bin/console doctrine:migrations:generate // 產生空白 migrations
+php bin/console doctrine:migrations:execute YYYYMMDDHHMMSS --up    // 版本當前
+php bin/console doctrine:migrations:execute YYYYMMDDHHMMSS -down   // 回復到版本之前
 
-templates/lucky/number.html.twig ：
-	<h1>Your lucky number is {{ number }}</h1>
-	
-// 重新導向：
-	至Route
-	return $this->redirectToRoute("路由名, ["參數"] => 值);
-	return $this->redirectToRoute("app_lucky_number", ["max" => 10]);
-	
-	外部連結
-	return $this->redirect('http://symfony.com/doc');
-	
-// 日誌介面：						use Psr\Log\LoggerInterface;
-public function number($max, LoggerInterface $logger)
+
+# Symfony version 3.4
+composer create-project symfony/framework-standard-edition my_project_name "3.4.*"  // version 3.4
+php bin/console server:run      // 啟動 Symfony 伺服器
+// Doctrine
+// app/config/parmaeters.yml     // 資料庫設定
+php bin/console doctrine:schema:validate
+php bin/console doctrine:schema:update --force      // 建立(更新)資料表
+- Entity
+use AppBundle\Repository\Entity\nameRepository;
+use Doctrine\ORM\Mapping as ORM;
+- Repository
+use Doctrine\ORM\EntityRepository;
+// timezone
+// app/AppKernel.php
+public function __construct($environment, $debug)
 {
-    $logger->info("We are logging");
+    date_default_timezone_set("Asia/Taipei");
+    parent::__construct($environment, $debug);
 }
 
-// 觸發404 HTT
-throw $this->createNotFoundException("the product does not exist"); 
 
+# Symfony version 5.1
+composer create-project symfony/website-skeleton my-project     // 建立檔案
+php -S 127.0.0.1:8000 -t public/                // 啟動 Symfony 伺服器
 
-// 使用Request				use Symfony\Component\HttpFoundation\Request;
+php bin/console make:controller NewController_name      // 快速新建一個 Controller
+php bin/console make:curd EntityName                    // 針對一個 Doctrine Entity 完整的 CURD
 
-// 使用Session				use Symfony\Component\HttpFoundation\Session\SessionInterface;
-public function index(SessionInterface $session)
+use Symfony\Component\HttpFoundation\Response;      // return new Response(...); 使用 Response 物件 
+use Symfony\Component\HttpFoundation\JsonResponse;  // return new JsonResponse(array(...)); 將陣列轉換為 Json 輸出
+
+// timezone version 4^
+public/index.php
+$kernel = new Kernel($_SERVER['APP_ENV'], (bool) $_SERVER['APP_DEBUG']);
+date_default_timezone_set( 'Asia/Taipei' );     // 更換時區
+$request = Request::createFromGlobals();
+
+# Doctrine
+composer require symfony/orm-pack
+composer require --dev symfony/maker-bundle         // 安裝 Doctrine
+// .env
+DATABASE_URL="mysql://db_user:db_password@127.0.0.1:3306/db_name"   -> 將 db_user、db_password、db_name 改掉
+php bin/console doctrine:database:create        // 建立資料庫
+php bin/console make:entity         // 按照指示新增實體結構
+
+php bin/console make:migration
+php bin/console doctrine:migrations:migrate     // 建立資料表
+
+$entityManager = $this->getDoctrine()->getManager();
+
+// 簡化 將 id 轉成 Entity 物件
+composer require sensio/framework-extra-bundle
+
+public function show(Product $product ＝ null)      // 將路由的id -> Product $product
 {
-    // stores an attribute for reuse during a later user request
-    $session->set('foo', 'bar');
+    if (!$product) {
+        return $this->redirectToRoute("...");       // $product = null
+    }
 
-    // gets the attribute set by another controller in another request
-    $foobar = $session->get('foobar');
-
-    // uses a default value if the attribute doesn't exist
-    $filters = $session->get('filters', []);
+    return new Response($product->getName());
 }
 
-// 使用者Session： flash message 只會使用一次，檢索後自動從session刪除(適合存放用戶通知)
+// 從資料表撈出資料
+public function showProduct($id)
+{
+    $qb = $this->getDoctrine()
+        ->getManager()
+        ->getRepository(Product::class)
+        ->createQueryBuilder('p');
+    $product = $qb->where($qb->expr()->eq('p.id', '?1'))
+        ->setParameter(1, $id)
+        ->getQuery()
+        ->getSingleResult();
+    
+    if (!$product) {
+        throw $this->createNotFoundException("doesn't found id " . $id);
+    }
+
+    return new Response($product->getName());
+}
+
+// 更新(update)
+$qb->update()
+    ->set('p.name','?1')
+    ->setParameter(1, '...')
+    ->execute();
+
+$message->setTitle("...");
+$entityManager->flush();
+
+// 刪除(delete)
+$entityManager->remove($message);       // Message $message
+$entityManager->flush();
+
+// 取得 Entity 物件
+$customer = $entityManager->getReference(Customer::class, $id);
+$entityManager->remove($customer);
+$entityManager->flush();
+
+
+
+
+# Form in Controller
+// src/Entity 建立一個表單(Entity 資料表)
+namespace App\Entity;
+
+// src/Controller
+use\symfony\Component\Form\Extension\Core\Type\DateType;
+use\symfony\Component\Form\Extension\Core\Type\TextType;
+use\symfony\Component\Form\Extension\Core\Type\TextareaType;
+use\symfony\Component\Form\Extension\Core\Type\SubmitType;
+...
+
+public function news(Request $request)
+{
+    $task = new Task();
+
+    $form = $this->createFormBuilder($task)
+        ->add("task", TextType::class, ["label" => "TaskName"])         // 對應到 Entity 的欄位(Column)
+        ->add("dueDate", DateType::class, ["label" => "TheDate"])
+        ->add("description", TextareaType::class, ["label" => "TheDescription", "required" => false])       // 預設為 true
+        ->add("save", SubmitType::class, ["label" => "CreateTask"])
+        ->add("cancel", SubmitType::class, ["label" => "CancelTask"])
+        ->getForm();
+    $form->handleRequest($request);         // 意識表單被提交，並驗證
+
+    if ($form->get("cancel")->isClicked()) {                    // button clicked   $form->getClickedButton() === $form->get("cancel")
+        return $this->redirectToRoute("task_get");
+    }
+
+    if ($form->isSubmitted() && $form->isValid()) {
+            // $description = $form->get("description")->getData();         // 取得單一欄位資料
+            $task = $form->getData();
+            $entityManager = $this->getDoctrine()->getManager();
+            $entityManager->persist($task);
+            $entityManager->flush();        // 將資料存至資料庫
+
+            return $this->redirectToRoute("task_get");
+        }
+
+    return $this->render("task/new.html.twig", ["form" => $form->createView()]);
+}
+// templates/task/new.html.twig
+{{ form(form) }}
+
+# form
+<form action="{{ path('router_name') }}" method="POST">
+    ...
+</form>
+
+
+
+# render 模板
+// app/Resources/views/...                  // 預設模板位置
+<link rel="stylesheet" href="{{ asset('...') }}">    -> 路徑在 web 底下(ver 3.4)
+<script src="{{ asset('...') }}"></script>      // web/..(ver 3.4)
+composer req twig
+
+// use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+
+class LuckyController extends Controller
+{
+    ...
+    return $this->render("lucky/number.html.twig", [
+        "number" => $number
+    ]);
+}
+// app/Resources/views/lucky/number.html.twig
+<h1> Your lucky number is {{ number }} </h1>                // 參數放在 {{  }} 中
+
+// {{ ... }}    : 輸出一個從Controller傳進來的值  {{ title }}  {{title|upper}} -> 將title轉成大寫
+// {% ... %}    : 邏輯標籤，可進行陳述Ex: foreach
+// {# ... #}    : 註解
+
+// 跳轉頁面 path(跳轉之route), {傳遞的參數名: 參數}
+<a href="{{ path('router_name', {'placeholder': 'value'}) }}">
+<a href="{{ url('router_name', {'placeholder': 'value'}) }}">
+
+// for
+{% for p in product %}              // product: 從Controller傳送過來的 {% for i in 0..5 %}  -> for(int i=0; i<=5; i++)
+    <tr>
+        <td>{{ p.name }}</td>
+    </tr>
+{% endfor %}
+// i++
+{% set i = i + 1 %} {{ i }}         // 設置完，印出來
+
+{% extends filename.twig %}     // 繼承模板，可重新複寫 block
+{% include filename.twig %}     // 包含模板，完全複製到新的模板
+{% use filename.twig %}         // 使用模板，可使用內含的 block，亦可複寫 block
+// extends 與 include 不可同時使用
+
+
+
+
+# config/routes.yaml 建立路由
+app_lucky_number:
+    path: /lucky/number
+    controller: App\Controller\LuckyController::number
+
+# 使用註解式路由
+composer require annotations
+
+use Symfony\Component\Routing\Annotation\Route;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Method;
+
+/**
+* @Route("/lucky/number")
+* @Method({"GET"})                   // GET
+*/
+public function number()
+{
+    ...
+}
+
+// 帶有使用者輸入的值 {placeHolders}
+// requirements: 限制輸入的值(\d: 數字)
+/**
+* @Route("lucky/{page}", name = "router_name", requirements = {"page" = "\d+"})
+*/
+public function testplaceholder($page)
+{
+    ...
+}
+
+// 帶檔案名稱
+/**
+* @Route(
+*     "/placeholder/{local}/{year}/{slug}.{_format}",
+*     requirements = {
+*         "local" : "en|fr",
+*         "_format" : "html|rss",
+*         "year" : "\d+"
+*     }
+* )
+*/
+public function placeholder($local, $year, $slug)
+{
+    ...
+}
+
+# 重新導向(Redirect)
+use Symfony\Component\HttpFoundation\RedirectResponse;
+
+class LuckyController extends Controller            // 必需繼承 AbstractController or Controller
+{
+    public function redirectRouting()
+    {
+        return $this->redirectToRoute("router_name",["max" => 10]);         // 可以帶值進去
+        // return $this->redirectToRoute("router_name");
+        // return $this->redirect("https://google.com");
+        // return $this->redirect($this->generateUrl("router_name", ["page" => 1] ));
+    }
+}
+
+# 拋出錯誤(throw Exception)
+use Symfony\Component\Config\Definition\Exception\Exception;        // = throw new \Exception("...");
+
+/**
+* @Route("/brand/throwtest/{something}", name = "throw_test")
+*/
+public function throwExpection($something)
+{
+    if ($something == "something") {
+        // throw $this->createNotFoundException("that can't be 'something' ");             // createNotFoundException : 觸發404
+        throw new \Exception("XXX");                // 500
+    }
+
+    return new Response("echo: $something");
+}
+
+# Request
+use Symfony/Component/HttpFoundation/Request;
+$get = $request->query->get("something");       // get
+$post = $request->request->get("something");    // post
+
+# Session
+use Symfony/Component/HttpFoundation/Session/SessionInterface;
+
+public function SessionTest(SessionInterface $session)
+{
+    $session->set("foo", "bar");
+    $s = $session->get("foo");
+    // $session->remove("foo");             // 刪除特定 session
+    $session->clear();                      // 刪除所有 session
+
+    return new Response($s);
+}
+
+
+# flash message
+// "notice" -> Key值
 $this->addFlash(
-    'notice',
-    'Your changes were saved!'
-);										// key值 = "notice"
-app.flashs()							// 讀取session內任何flash message
+    "notice",
+    "Your changes were saved"
+)
 
-// 回傳json
-json()						// 回傳一個已經自動編碼(encode)的JsonResponse特殊物件
 
-// 文件回應					return $this->file('/path/to/some_file.pdf');
+
+## Command 透過 bin/console 創建自己的命令
+// src/AppBundle/Command/CreateBankCommand.php
+namespace AppBundle\Command;
+
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Input\InputArgument;
+
+class CreateBankCommand extends Command
+{
+    protected function configure()
+    {
+        $this->setName("app:create-account")       // 在終端機執行時的指令 Ex: php bin/console app:create-account
+            ->setDescription("...")
+            ->setHelp("...")
+            ->addArgument("accountName", InputArgument::REQUIRED, "The account of name");       // 帶入參數進去
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output)          // 執行
+    {
+        $output->writeln([
+            "Creating...",
+            "..."
+        ]);
+
+        $output->write("...");
+        $output->write("accountName" . $input->getArgument("accountName"));
+    }
+}
